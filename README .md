@@ -12,7 +12,7 @@ shift in the model's predicted trajectory distribution is measured using:
 
 This repository contains the inference pipeline, metric computation, and
 interactive scene explorer. The counterfactual dataset
-(**Counter-nuScenes**) is hosted separately on Hugging Face.
+(**Counter-nuScenes**) will be released upon acceptance.
 
 ---
 
@@ -22,7 +22,7 @@ interactive scene explorer. The counterfactual dataset
 CVAA/
 ├── dataset_runner.py        # Runs AV model inference over original + counterfactual images
 ├── ad_fd_gen.py             # Computes AD and FD from saved trajectory npz files
-├── visualisation_final.py  # Interactive scene explorer (Flask backend)
+├── visualisation_final.py   # Interactive scene explorer (Flask backend)
 ├── index_v2.html            # Scene explorer frontend
 │
 ├── src/
@@ -33,30 +33,18 @@ CVAA/
 │
 └── demo_scenes/
     └── nuscenes_with_inpainted/
-        ├── scene-0004/
-        ├── scene-0061/
-        └── scene-0653/
+        ├── scene-0029/
+        ├── scene-0252/
+        └── scene-0731/
 ```
 
 ---
 
 ## Dataset
 
-Download the Counter-nuScenes dataset from Hugging Face:
+The Counter-nuScenes dataset will be released upon acceptance.
 
-```bash
-pip install huggingface_hub
-python3 -c "
-from huggingface_hub import snapshot_download
-snapshot_download(
-    repo_id='kpanda/counter-nuscenes',
-    repo_type='dataset',
-    local_dir='nuscenes_with_inpainted',
-)
-"
-```
-
-Or use the included `demo_scenes/` for a quick start (3 scenes).
+In the meantime, use the included `demo_scenes/` for a quick start (3 scenes).
 
 ---
 
@@ -102,6 +90,66 @@ class YourModelInference:
         """
         ...
 ```
+
+Then pass your wrapper to `dataset_runner.py` by replacing the import:
+
+```python
+# dataset_runner.py line 12 — swap in your wrapper
+from your_model_wrapper import YourModelInference as AlpamayoInference
+```
+
+---
+
+## Usage
+
+### 1. Run inference
+
+```bash
+python dataset_runner.py \
+    --csv     scene_list.csv \
+    --root    nuscenes_with_inpainted/ \
+    --results_dir results/ \
+    --num_traj 6 \
+    --seed 42
+```
+
+`scene_list.csv` requires columns: `scene_name`, `saved_image`, `data_npz`.
+
+### 2. Compute AD / FD
+
+```bash
+python ad_fd_gen.py \
+    results/global_results.csv \
+    results/comp_all.csv
+```
+
+### 3. Launch scene explorer
+
+```bash
+python visualisation_final.py \
+    --root  demo_scenes \
+    --csvs  demo_scenes/nuscenes_with_inpainted/comp_all_v2_clean.csv \
+            demo_scenes/nuscenes_with_inpainted/comp_all_v3_clean.csv \
+            demo_scenes/nuscenes_with_inpainted/comp_all_v4_clean.csv \
+            demo_scenes/nuscenes_with_inpainted/demo_merged.csv \
+    --port  5050
+```
+
+Open `http://localhost:5050` in your browser.
+
+---
+
+## Scene Explorer
+
+The interactive scene explorer lets you:
+
+- Browse scenes and per-object AD/FD rankings
+- Overlay segmentation masks coloured by attribution rank
+- Compare rankings across multiple inference runs (seeds)
+- Inspect object metadata (label, depth, confidence, bounding box)
+
+--
+
 
 Then pass your wrapper to `dataset_runner.py` by replacing the import:
 
