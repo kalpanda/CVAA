@@ -267,7 +267,7 @@ def main():
         raise SystemExit(1)
 
     for csv_path, name in zip(args.csvs, run_names):
-       full = Path(csv_path) if Path(csv_path).is_absolute() else Path(csv_path)
+        full = Path(csv_path) if Path(csv_path).is_absolute() else Path(csv_path)
         load_csv(str(full), name)
 
     print(f"\nRuns: {run_names}  |  Scenes: {len(SCENE_LIST)}")
