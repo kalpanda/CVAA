@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scene Explorer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0D1117;--bg2:#161b22;--bg3:#21262d;
+  --border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#4FC3F7;--accent2:#FF6B6B;
+  --gold:#FFD700;--silver:#C0C0C0;--bronze:#CD7F32;
+  --r:8px;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;height:100vh;overflow:hidden}
+#app{display:grid;grid-template-columns:270px 1fr;grid-template-rows:46px 1fr;height:100vh}
+#topbar{grid-column:1/-1;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 14px}
+#topbar h1{font-size:13px;font-weight:600;white-space:nowrap}
+.sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
+select,#scene-search{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:var(--r);padding:3px 7px;font-size:12px;height:28px}
+#scene-sel{width:155px}
+#scene-search{width:110px}
+#scene-search::placeholder{color:var(--muted)}
+.nav-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:var(--r);padding:3px 9px;cursor:pointer;font-size:12px;height:28px}
+.nav-btn:hover{background:var(--border)}
+#scene-counter{font-size:11px;color:var(--muted);white-space:nowrap}
+.hint{font-size:11px;color:var(--muted);margin-left:auto;white-space:nowrap}
+#sidebar{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#sb-head{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#sb-head h2{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.sort-tabs{display:flex;gap:4px}
+.sort-tab{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px}
+.sort-tab.active{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
+#obj-list{overflow-y:auto;flex:1}
+.obj-row{padding:7px 10px;border-bottom:1px solid var(--border);cursor:pointer;display:grid;grid-template-columns:22px 1fr;gap:6px;align-items:start;transition:background .1s}
+.obj-row:hover,.obj-row.hover{background:var(--bg3)}
+.obj-row.pinned{background:var(--bg3);border-left:2px solid var(--accent)}
+.rank-chip{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px}
+.r1{background:var(--gold);color:#000}.r2{background:var(--silver);color:#000}.r3{background:var(--bronze);color:#fff}
+.rn{background:var(--bg);color:var(--muted);border:1px solid var(--border);font-size:9px}
+.obj-info{min-width:0}
+.obj-label{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.obj-meta{display:flex;gap:8px;margin-top:2px}
+.metric{display:flex;align-items:center;gap:3px}
+.mk{font-size:10px;color:var(--muted)}.mv{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums}
+.ad{color:var(--accent)}.fd{color:var(--accent2)}
+.bar-wrap{margin-top:3px;height:3px;background:var(--bg);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px}
+#main{position:relative;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}
+#canvas-wrap{position:relative;display:inline-block;line-height:0}
+#scene-img{display:block;max-width:100%;max-height:calc(100vh - 46px);object-fit:contain;user-select:none}
+#mask-canvas{position:absolute;top:0;left:0;pointer-events:none}
+#overlay-svg{position:absolute;top:0;left:0;overflow:visible}
+#controls{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:5px;z-index:10}
+.ctrl-btn{background:rgba(22,27,34,.9);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;white-space:nowrap}
+.ctrl-btn:hover{background:var(--bg3)}.ctrl-btn.active{border-color:var(--accent);color:var(--accent)}
+.opac-wrap{background:rgba(22,27,34,.9);border:1px solid var(--border);border-radius:6px;padding:5px 9px}
+.opac-wrap label{font-size:10px;color:var(--muted);display:block;margin-bottom:3px}
+#stats-bar{position:absolute;bottom:0;left:0;right:0;background:rgba(13,17,23,.88);border-top:1px solid var(--border);display:flex;gap:18px;padding:5px 14px;align-items:center;pointer-events:none}
+.stat{display:flex;align-items:baseline;gap:5px}
+.sl{font-size:11px;color:var(--muted)}.sv{font-size:13px;font-weight:600}
+#tt{position:fixed;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;font-size:12px;pointer-events:none;z-index:999;display:none;min-width:150px}
+.tt-label{font-weight:600;font-size:13px;margin-bottom:5px}
+.tt-row{display:flex;justify-content:space-between;gap:14px;margin-top:2px}
+.tt-k{color:var(--muted)}.tt-v{font-weight:600;font-variant-numeric:tabular-nums}
+#loading{position:absolute;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);z-index:100}
+#loading.hidden{display:none}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.run-tab{background:var(--bg3);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px;height:26px;white-space:nowrap}
+.run-tab:hover{background:var(--border)}
+.run-tab.active{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
+/* rank stability indicator in sidebar */
+.rank-delta{font-size:9px;margin-left:4px;font-variant-numeric:tabular-nums}
+.rd-same{color:var(--muted)}.rd-up{color:#00FF9F}.rd-down{color:var(--accent2)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <h1>Scene Explorer</h1>
+    <div class="sep"></div>
+    <button class="nav-btn" id="prev">&#8592;</button>
+    <select id="scene-sel"></select>
+    <button class="nav-btn" id="next">&#8594;</button>
+    <input id="scene-search" type="text" placeholder="Jump to scene…">
+    <span id="scene-counter"></span>
+    <div class="sep"></div>
+    <span style="font-size:11px;color:var(--muted);flex-shrink:0">Run:</span>
+    <div id="run-tabs" style="display:flex;gap:4px;flex-shrink:0"></div>
+    <span class="hint">Hover for AD/FD · Click to pin · Switch runs to compare ranks</span>
+  </div>
+  <div id="sidebar">
+    <div id="sb-head">
+      <h2 id="sb-title">Objects</h2>
+      <div class="sort-tabs">
+        <button class="sort-tab active" id="tab-ad">AD</button>
+        <button class="sort-tab" id="tab-fd">FD</button>
+      </div>
+    </div>
+    <div id="obj-list"></div>
+  </div>
+  <div id="main">
+    <div id="loading">Loading…</div>
+    <div id="canvas-wrap">
+      <img id="scene-img" alt="">
+      <canvas id="mask-canvas"></canvas>
+      <svg id="overlay-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div id="controls">
+      <button class="ctrl-btn active" id="tog-masks">Masks on</button>
+      <button class="ctrl-btn active" id="tog-boxes">Boxes on</button>
+      <button class="ctrl-btn active" id="tog-labels">Labels on</button>
+      <div class="opac-wrap">
+        <label>Mask opacity</label>
+        <input type="range" id="opac" min="0" max="100" value="50" step="5">
+      </div>
+    </div>
+    <div id="stats-bar">
+      <div class="stat"><span class="sl">Scene</span><span class="sv" id="st-scene">—</span></div>
+      <div class="stat"><span class="sl">Objects</span><span class="sv" id="st-n">—</span></div>
+      <div class="stat"><span class="sl">Max AD</span><span class="sv ad" id="st-maxad">—</span></div>
+      <div class="stat"><span class="sl">Mean AD</span><span class="sv" id="st-menad">—</span></div>
+      <div class="stat"><span class="sl">Top object</span><span class="sv" id="st-top">—</span></div>
+    </div>
+  </div>
+</div>
+<div id="tt">
+  <div class="tt-label" id="tt-lbl"></div>
+  <div class="tt-row"><span class="tt-k">Rank (AD)</span><span class="tt-v ad" id="tt-rad"></span></div>
+  <div class="tt-row"><span class="tt-k">Rank (FD)</span><span class="tt-v fd" id="tt-rfd"></span></div>
+  <div class="tt-row"><span class="tt-k">AD</span><span class="tt-v ad" id="tt-ad"></span></div>
+  <div class="tt-row"><span class="tt-k">FD</span><span class="tt-v fd" id="tt-fd"></span></div>
+  <div class="tt-row"><span class="tt-k">Depth</span><span class="tt-v" id="tt-dep"></span></div>
+  <div class="tt-row"><span class="tt-k">Coverage</span><span class="tt-v" id="tt-cov"></span></div>
+  <div class="tt-row"><span class="tt-k">Conf</span><span class="tt-v" id="tt-conf"></span></div>
+</div>
+<script>
+let scenes=[],sceneIdx=0,objects=[],maskDict={},sortKey='AD';
+let runs=[],currentRun=null;
+let prevRankMap={};  // object_idx → rank_ad from previous run, for delta display
+let showMasks=true,showBoxes=true,showLabels=true,maskOpacity=0.5;
+let pinnedLI=null,hoveredLI=null;
+let iW=1,iH=1,nW=1,nH=1;
+
+const PALETTE=['#FF2222','#FF5500','#FF8800','#FFAA00','#FFD700','#CCDD00','#88CC22','#44BB66','#22AAAA','#4488FF','#8866FF'];
+function rankColor(rank,total){
+  const t=total<=1?0:(rank-1)/(total-1);
+  return PALETTE[Math.min(Math.floor(t*PALETTE.length),PALETTE.length-1)];
+}
+
+async function boot(){
+  // Load run names and build tabs
+  const rr=await fetch('/api/runs');
+  runs=await rr.json();
+  const tabBar=document.getElementById('run-tabs');
+  runs.forEach((name,i)=>{
+    const btn=document.createElement('button');
+    btn.className='run-tab'+(i===0?' active':'');
+    btn.textContent=name;btn.dataset.run=name;
+    btn.addEventListener('click',()=>{
+      currentRun=name;
+      document.querySelectorAll('.run-tab').forEach(b=>b.classList.toggle('active',b.dataset.run===name));
+      loadScene();
+    });
+    tabBar.appendChild(btn);
+  });
+  currentRun=runs[0]||null;
+
+  const r=await fetch('/api/scenes');
+  scenes=await r.json();
+  const sel=document.getElementById('scene-sel');
+  scenes.forEach((s,i)=>{const o=document.createElement('option');o.value=i;o.textContent=s;sel.appendChild(o);});
+  sel.addEventListener('change',()=>{sceneIdx=+sel.value;loadScene();});
+  document.getElementById('prev').addEventListener('click',()=>{if(sceneIdx>0){sceneIdx--;sel.value=sceneIdx;loadScene();}});
+  document.getElementById('next').addEventListener('click',()=>{if(sceneIdx<scenes.length-1){sceneIdx++;sel.value=sceneIdx;loadScene();}});
+  document.getElementById('scene-search').addEventListener('input',e=>{
+    const q=e.target.value.toLowerCase();
+    const m=scenes.findIndex(s=>s.toLowerCase().includes(q));
+    if(m>=0){sceneIdx=m;sel.value=m;loadScene();}
+  });
+  document.getElementById('tab-ad').addEventListener('click',()=>{sortKey='AD';updateTabs();rerank();renderAll();});
+  document.getElementById('tab-fd').addEventListener('click',()=>{sortKey='FD';updateTabs();rerank();renderAll();});
+  document.getElementById('tog-masks').addEventListener('click',function(){showMasks=!showMasks;this.textContent=showMasks?'Masks on':'Masks off';this.classList.toggle('active',showMasks);renderMasks();});
+  document.getElementById('tog-boxes').addEventListener('click',function(){showBoxes=!showBoxes;this.textContent=showBoxes?'Boxes on':'Boxes off';this.classList.toggle('active',showBoxes);renderSVG();});
+  document.getElementById('tog-labels').addEventListener('click',function(){showLabels=!showLabels;this.textContent=showLabels?'Labels on':'Labels off';this.classList.toggle('active',showLabels);renderSVG();});
+  document.getElementById('opac').addEventListener('input',e=>{maskOpacity=e.target.value/100;renderMasks();});
+  new ResizeObserver(()=>{syncCanvas();renderAll();}).observe(document.getElementById('scene-img'));
+  loadScene();
+}
+
+function updateTabs(){
+  document.getElementById('tab-ad').classList.toggle('active',sortKey==='AD');
+  document.getElementById('tab-fd').classList.toggle('active',sortKey==='FD');
+}
+
+function rerank(){
+  objects.sort((a,b)=>{
+    const ak=sortKey==='AD'?(a.AD??-1):(a.FD??-1);
+    const bk=sortKey==='AD'?(b.AD??-1):(b.FD??-1);
+    return bk-ak;
+  });
+}
+
+async function loadScene(){
+  document.getElementById('loading').classList.remove('hidden');
+  pinnedLI=null;hoveredLI=null;maskDict={};
+  const scene=scenes[sceneIdx];
+  document.getElementById('scene-counter').textContent=`${sceneIdx+1} / ${scenes.length}`;
+  document.getElementById('scene-sel').value=sceneIdx;
+
+  const img=document.getElementById('scene-img');
+  await new Promise(res=>{img.onload=res;img.src=`/api/image/${scene}?t=${Date.now()}`;});
+  nW=img.naturalWidth;nH=img.naturalHeight;
+  syncCanvas();
+
+  // Store previous run's rank map for delta display
+  prevRankMap={};
+  objects.forEach(o=>{ if(o.object_idx>=0) prevRankMap[o.object_idx]=o.rank_ad; });
+
+  // Load objects — keyed correctly by object_idx on server
+  const dres=await fetch(`/api/scene/${encodeURIComponent(currentRun)}/${scene}`);
+  const data=await dres.json();
+  objects=data.objects||[];
+  rerank();
+
+  // Load masks — server returns dict { "object_idx_str": base64_png }
+  const mres=await fetch(`/api/masks_all/${scene}`);
+  const mb64=await mres.json();
+  maskDict={};
+  await Promise.all(Object.entries(mb64).map(([idxStr,b64])=>new Promise(res=>{
+    const im=new Image();
+    im.onload=()=>{maskDict[parseInt(idxStr,10)]=im;res();};
+    im.src='data:image/png;base64,'+b64;
+  })));
+
+  document.getElementById('loading').classList.add('hidden');
+  renderAll();
+  updateStats();
+}
+
+function syncCanvas(){
+  const img=document.getElementById('scene-img');
+  iW=img.clientWidth;iH=img.clientHeight;
+  const c=document.getElementById('mask-canvas');
+  c.width=iW;c.height=iH;
+  c.style.width=iW+'px';c.style.height=iH+'px';
+  const svg=document.getElementById('overlay-svg');
+  svg.setAttribute('width',iW);svg.setAttribute('height',iH);
+}
+
+function sx(x){return x*iW/nW;}
+function sy(y){return y*iH/nH;}
+
+function renderAll(){renderSidebar();renderMasks();renderSVG();}
+
+function renderMasks(){
+  const c=document.getElementById('mask-canvas');
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,iW,iH);
+  if(!showMasks)return;
+  const total=objects.length;
+  const focus=pinnedLI??hoveredLI;
+
+  // Draw all masks dimmed first
+  objects.forEach((obj,li)=>{
+    const im=maskDict[obj.object_idx];
+    if(!im||li===(pinnedLI??hoveredLI))return;  // skip focus obj — drawn last
+    const rank=sortKey==='AD'?obj.rank_ad:obj.rank_fd;
+    const col=rankColor(rank,total);
+    const dim=focus!==null&&focus!==li;
+    drawMask(ctx,im,col,dim?maskOpacity*0.2:maskOpacity);
+  });
+
+  // Draw focused mask on top
+  if(focus!==null){
+    const obj=objects[focus];
+    const im=maskDict[obj?.object_idx];
+    if(im){
+      const rank=sortKey==='AD'?obj.rank_ad:obj.rank_fd;
+      drawMask(ctx,im,rankColor(rank,total),Math.min(maskOpacity*1.7,0.9));
+    }
+  }
+}
+
+function drawMask(ctx,im,col,alpha){
+  // Use a temporary offscreen canvas to composit colour into alpha shape
+  const tmp=document.createElement('canvas');
+  tmp.width=iW;tmp.height=iH;
+  const t=tmp.getContext('2d');
+  t.drawImage(im,0,0,iW,iH);           // draw alpha-only mask
+  t.globalCompositeOperation='source-in';
+  t.fillStyle=col;
+  t.globalAlpha=1;
+  t.fillRect(0,0,iW,iH);              // flood with colour inside mask shape
+  // Composite onto main canvas
+  ctx.globalAlpha=alpha;
+  ctx.drawImage(tmp,0,0);
+  ctx.globalAlpha=1;
+}
+
+function renderSVG(){
+  const svg=document.getElementById('overlay-svg');
+  svg.innerHTML='';
+  const total=objects.length;
+  const focus=pinnedLI??hoveredLI;
+
+  objects.forEach((obj,li)=>{
+    if(!obj.box_xyxy||obj.box_xyxy.length!==4)return;
+    const[x1,y1,x2,y2]=obj.box_xyxy;
+    const rx=sx(x1),ry=sy(y1),rw=sx(x2)-sx(x1),rh=sy(y2)-sy(y1);
+    const rank=sortKey==='AD'?obj.rank_ad:obj.rank_fd;
+    const col=rankColor(rank,total);
+    const isFocus=focus===li;
+    const dim=focus!==null&&!isFocus;
+    const op=dim?0.2:1;
+
+    // Stroke box
+    if(showBoxes){
+      const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      rect.setAttribute('x',rx);rect.setAttribute('y',ry);
+      rect.setAttribute('width',rw);rect.setAttribute('height',rh);
+      rect.setAttribute('rx','2');rect.setAttribute('fill','none');
+      rect.setAttribute('stroke',col);rect.setAttribute('stroke-width',isFocus?'2.5':'1.5');
+      rect.setAttribute('opacity',op);rect.setAttribute('pointer-events','none');
+      svg.appendChild(rect);
+    }
+
+    // Label
+    if(showLabels){
+      const adStr=obj.AD!=null?obj.AD.toFixed(2):'?';
+      const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x',rx+3);t.setAttribute('y',Math.max(ry-4,11));
+      t.setAttribute('font-size',isFocus?'11':'9');
+      t.setAttribute('fill',col);t.setAttribute('opacity',op);
+      t.setAttribute('font-family','monospace');t.setAttribute('font-weight',isFocus?'700':'400');
+      t.setAttribute('paint-order','stroke');t.setAttribute('stroke','#000');
+      t.setAttribute('stroke-width','2.5');t.setAttribute('stroke-linejoin','round');
+      t.setAttribute('pointer-events','none');
+      t.textContent=`#${rank} ${obj.object_label}  AD:${adStr}`;
+      svg.appendChild(t);
+    }
+
+    // Hit rect — fill:transparent registers pointer events; fill:none does NOT
+    const hit=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    hit.setAttribute('x',rx);hit.setAttribute('y',ry);
+    hit.setAttribute('width',rw);hit.setAttribute('height',rh);
+    hit.setAttribute('fill','transparent');    // ← critical: not "none"
+    hit.setAttribute('stroke','none');
+    hit.setAttribute('pointer-events','all');
+    hit.style.cursor='pointer';
+    hit.addEventListener('mouseenter',e=>{onHover(li,e);});
+    hit.addEventListener('mousemove', e=>{moveTT(e);});
+    hit.addEventListener('mouseleave',  ()=>{onLeave();});
+    hit.addEventListener('click',       ()=>{onPin(li);});
+    svg.appendChild(hit);
+  });
+}
+
+function onHover(li,e){hoveredLI=li;showTT(li);moveTT(e);renderMasks();renderSVG();hlRow(li,false);}
+function onLeave(){if(pinnedLI===null){hoveredLI=null;hideTT();renderMasks();renderSVG();hlRow(null,false);}}
+function onPin(li){
+  pinnedLI=pinnedLI===li?null:li;
+  if(pinnedLI===null)hideTT();else showTT(pinnedLI);
+  renderMasks();renderSVG();hlRow(pinnedLI,true);
+}
+function hlRow(li,pin){
+  document.querySelectorAll('.obj-row').forEach(r=>r.classList.remove('hover','pinned'));
+  if(li==null)return;
+  const r=document.querySelector(`.obj-row[data-li="${li}"]`);
+  if(r){r.classList.add(pin?'pinned':'hover');r.scrollIntoView({block:'nearest'});}
+}
+
+function showTT(li){
+  const obj=objects[li];if(!obj)return;
+  document.getElementById('tt-lbl').textContent=`${obj.object_label} (idx ${obj.object_idx})`;
+  document.getElementById('tt-rad').textContent=obj.rank_ad!=null?`#${obj.rank_ad}`:'—';
+  document.getElementById('tt-rfd').textContent=obj.rank_fd!=null?`#${obj.rank_fd}`:'—';
+  document.getElementById('tt-ad').textContent=obj.AD!=null?obj.AD.toFixed(4):'—';
+  document.getElementById('tt-fd').textContent=obj.FD!=null?obj.FD.toFixed(4):'—';
+  document.getElementById('tt-dep').textContent=obj.depth_m!=null?obj.depth_m.toFixed(1)+'m':'—';
+  document.getElementById('tt-cov').textContent=obj.coverage_pct!=null?obj.coverage_pct.toFixed(2)+'%':'—';
+  document.getElementById('tt-conf').textContent=obj.object_conf!=null?(+obj.object_conf).toFixed(2):'—';
+  document.getElementById('tt').style.display='block';
+}
+function hideTT(){document.getElementById('tt').style.display='none';}
+function moveTT(e){
+  const tt=document.getElementById('tt');
+  let x=e.clientX+14,y=e.clientY+14;
+  if(x+170>window.innerWidth)x=e.clientX-160;
+  if(y+210>window.innerHeight)y=e.clientY-200;
+  tt.style.left=x+'px';tt.style.top=y+'px';
+}
+
+function rankDelta(objIdx, currentRank){
+  if(runs.length<=1||!(objIdx in prevRankMap))return '';
+  const prev=prevRankMap[objIdx];
+  if(prev===currentRank)return '<span class="rank-delta rd-same">&#x2015;</span>';
+  const diff=prev-currentRank;  // positive = moved up (lower rank number = better)
+  if(diff>0)return `<span class="rank-delta rd-up">&#x25B2;${diff}</span>`;
+  return `<span class="rank-delta rd-down">&#x25BC;${Math.abs(diff)}</span>`;
+}
+
+function renderSidebar(){
+  const total=objects.length;
+  const maxVal=Math.max(...objects.map(o=>(sortKey==='AD'?o.AD:o.FD)??0),0.01);
+  document.getElementById('sb-title').textContent=`${total} objects — ${scenes[sceneIdx]}`;
+  document.getElementById('obj-list').innerHTML=objects.map((obj,li)=>{
+    const rank=sortKey==='AD'?obj.rank_ad:obj.rank_fd;
+    const rc=rank===1?'r1':rank===2?'r2':rank===3?'r3':'rn';
+    const barW=Math.min(100,((sortKey==='AD'?obj.AD:obj.FD)??0)/maxVal*100).toFixed(1);
+    const barCol=sortKey==='AD'?'var(--accent)':'var(--accent2)';
+    return `<div class="obj-row" data-li="${li}"
+      onmouseenter="onHover(${li},event)" onmouseleave="onLeave()" onclick="onPin(${li})">
+      <div class="rank-chip ${rc}">${rank}</div>
+      <div class="obj-info">
+        <div class="obj-label">${obj.object_label}${rankDelta(obj.object_idx, rank)}</div>
+        <div class="obj-meta">
+          <div class="metric"><span class="mk">AD</span><span class="mv ad">${obj.AD!=null?obj.AD.toFixed(3):'—'}</span></div>
+          <div class="metric"><span class="mk">FD</span><span class="mv fd">${obj.FD!=null?obj.FD.toFixed(3):'—'}</span></div>
+        </div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${barW}%;background:${barCol}"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateStats(){
+  const ads=objects.map(o=>o.AD).filter(v=>v!=null);
+  document.getElementById('st-scene').textContent=scenes[sceneIdx];
+  document.getElementById('st-n').textContent=objects.length;
+  document.getElementById('st-maxad').textContent=ads.length?Math.max(...ads).toFixed(3)+'m':'—';
+  document.getElementById('st-menad').textContent=ads.length?(ads.reduce((a,b)=>a+b,0)/ads.length).toFixed(3)+'m':'—';
+  const top=objects.find(o=>o.rank_ad===1);
+  document.getElementById('st-top').textContent=top?top.object_label:'—';
+}
+
+boot();
+</script>
+</body>
+</html>

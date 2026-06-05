@@ -1,0 +1,4 @@
+scene_name,object_idx,object_label,object_conf,AD,FD,variant,flagged_at
+scene-0029,17,skateboard,0.25,1.968938946723938,5.089773178100586,18_skateboard_conf0.25_imagen,2026-05-23T01:01:23.680452Z
+scene-0029,14,traffic light,0.3,0.2713334560394287,0.8243470788002014,15_traffic light_conf0.30_imagen,2026-05-23T01:03:20.025418Z
+scene-0029,16,traffic light,0.26,1.9187231063842773,4.858631134033203,17_traffic light_conf0.26_imagen,2026-05-23T01:03:20.376472Z
