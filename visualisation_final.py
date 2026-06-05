@@ -135,7 +135,7 @@ def load_seg_json(scene_name):
 
 
 def load_masks(scene_name):
-    npz_list = sorted((SCENES_ROOT / "nuscenes_per_scene" / scene_name).glob("*_masks.npz"))
+    npz_list = sorted((SCENES_ROOT / "nuscenes_with_inpainted" / scene_name).glob("*_masks.npz"))
     if not npz_list:
         return None, 0, 0
     try:
