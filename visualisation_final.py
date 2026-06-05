@@ -119,7 +119,7 @@ def load_csv(csv_path, run_name):
 
 
 def load_seg_json(scene_name):
-    path = SCENES_ROOT / "nuscenes_per_scene" / scene_name / f"{scene_name}_seg.json"
+    path = SCENES_ROOT / "nuscenes_with_inpainted" / scene_name / f"{scene_name}_seg.json"
     if not path.exists():
         return {}
     with open(path) as f:
