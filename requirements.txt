@@ -1,0 +1,7 @@
+numpy
+torch
+pillow
+matplotlib
+flask
+pandas
+huggingface_hub
