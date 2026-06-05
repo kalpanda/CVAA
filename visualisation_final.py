@@ -7,9 +7,11 @@ No mask tools — purely for comparing AD/FD across runs.
 
 Usage:
     python visualisation_compare.py \
-        --root /home/kalpanapanda/data/gemini_imgen \
-        --csvs comp_all_v3_clean.csv comp_all_v4_clean.csv \
-        --run-names v3 v4 \
+        --root demo_scenes \
+        --csvs demo_scenes/nuscenes_with_inpainted/comp_all_v2_clean.csv \
+               demo_scenes/nuscenes_with_inpainted/comp_all_v3_clean.csv \
+               demo_scenes/nuscenes_with_inpainted/comp_all_v4_clean.csv \
+               demo_scenes/nuscenes_with_inpainted/demo_merged.csv \
         --port 5050
 """
 
@@ -33,7 +35,6 @@ HTML_PATH   = Path(__file__).parent / "index_v2.html"
 def _parse_variant(variant):
     m = re.match(r"^(\d+)_(.+?)_conf([\d.]+)", variant or "")
     if not m:
-        # handle combined/drawn style
         stem = re.sub(r"_imagen$", "", variant or "")
         if stem.startswith("drawn_mask_"):
             return -1, "drawn_mask", 1.0
@@ -91,8 +92,6 @@ def load_csv(csv_path, run_name):
 
     scene_ranked = {}
     for scene, objs in scene_objects.items():
-        # Deduplicate: keep highest-AD per object_idx
-        # For combined/drawn (idx=-1) use variant as key so they don't collapse
         best = {}
         for obj in objs:
             idx = obj["object_idx"]
@@ -118,8 +117,19 @@ def load_csv(csv_path, run_name):
     print(f"  [{run_name}] {total} objects across {len(scene_objects)} scenes")
 
 
+def _scene_dir(scene_name):
+    """Return the scene directory, checking nuscenes_with_inpainted."""
+    p = SCENES_ROOT / "nuscenes_with_inpainted" / scene_name
+    if p.exists():
+        return p
+    return None
+
+
 def load_seg_json(scene_name):
-    path = SCENES_ROOT / "nuscenes_with_inpainted" / scene_name / f"{scene_name}_seg.json"
+    d = _scene_dir(scene_name)
+    if d is None:
+        return {}
+    path = d / f"{scene_name}_seg.json"
     if not path.exists():
         return {}
     with open(path) as f:
@@ -135,7 +145,10 @@ def load_seg_json(scene_name):
 
 
 def load_masks(scene_name):
-    npz_list = sorted((SCENES_ROOT / "nuscenes_with_inpainted" / scene_name).glob("*_masks.npz"))
+    d = _scene_dir(scene_name)
+    if d is None:
+        return None, 0, 0
+    npz_list = sorted(d.glob("*_masks.npz"))
     if not npz_list:
         return None, 0, 0
     try:
@@ -149,7 +162,7 @@ def load_masks(scene_name):
 @app.route("/")
 def index():
     if not HTML_PATH.exists():
-        return (f"<h2>visualisation_compare.html not found</h2>"
+        return (f"<h2>index_v2.html not found</h2>"
                 f"<p>Expected: <code>{HTML_PATH.resolve()}</code></p>", 404)
     return send_file(str(HTML_PATH))
 
@@ -170,25 +183,17 @@ def api_scene(run_name, scene_name):
     if run is None:
         abort(404)
     seg = load_seg_json(scene_name)
-    # Build label→idx lookup for combined/drawn resolution
     label_to_idx = {info["label"]: idx for idx, info in seg.items()}
 
-    # Priority order for combined mask label selection
     LABEL_PRIORITY = ["bus", "truck", "car", "person",
                       "bicycle", "motorcycle", "traffic light"]
 
     def combined_label(source_labels):
-        """
-        Pick the most meaningful label from a list of source labels.
-        Priority: bus > truck > car > person > bicycle > motorcycle > traffic light.
-        If none match, return the most common label.
-        """
         if not source_labels:
             return "combined"
         for preferred in LABEL_PRIORITY:
             if preferred in source_labels:
                 return preferred
-        # Fall back to most common
         from collections import Counter
         return Counter(source_labels).most_common(1)[0][0]
 
@@ -197,7 +202,6 @@ def api_scene(run_name, scene_name):
         obj = dict(rec)
         idx = obj["object_idx"]
 
-        # Resolve combined/drawn idx from seg.json by matching label
         if idx < 0:
             label = obj["object_label"] or ""
             idx   = label_to_idx.get(label, -1)
@@ -205,7 +209,6 @@ def api_scene(run_name, scene_name):
 
         info = seg.get(idx, {})
 
-        # For combined masks, derive display label from source objects
         source_labels = info.get("source_labels", [])
         if source_labels:
             obj["object_label"] = combined_label(source_labels)
@@ -220,7 +223,10 @@ def api_scene(run_name, scene_name):
 
 @app.route("/api/image/<scene_name>")
 def api_image(scene_name):
-    p = SCENES_ROOT / "nuscenes_per_scene" / scene_name / f"{scene_name}_front.jpg"
+    d = _scene_dir(scene_name)
+    if d is None:
+        abort(404)
+    p = d / f"{scene_name}_front.jpg"
     if not p.exists():
         abort(404)
     return send_file(str(p), mimetype="image/jpeg")
@@ -246,7 +252,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--root",      default=".",
-                        help="Project root containing nuscenes_per_scene/")
+                        help="Project root containing nuscenes_with_inpainted/")
     parser.add_argument("--csvs",      nargs="+", required=True)
     parser.add_argument("--run-names", nargs="+", default=None)
     parser.add_argument("--port",      type=int, default=5050)
