@@ -207,19 +207,6 @@ The interactive scene explorer lets you:
 
 ---
 
-## Citation
-
-```bibtex
-@misc{cvaa2025,
-  title   = {What Do They See? Counterfactual Visual Attribution
-             for Autonomous Driving Trajectory Prediction},
-  author  = {Anonymous},
-  year    = {2025},
-  note    = {Submitted to CoRL 2025}
-}
-```
-
----
 
 ## License
 
