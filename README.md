@@ -14,6 +14,7 @@ This repository contains the inference pipeline, metric computation, and
 interactive scene explorer. The counterfactual dataset
 (**Counter-nuScenes**) will be released upon acceptance.
 
+THe scene explorer with a demo set of scenes is available at https://cvaa.onrender.com
 ---
 
 ## Repository Structure
@@ -139,7 +140,7 @@ Open `http://localhost:5050` in your browser.
 
 ---
 
-## Scene Explorer
+## Scene Explorer/ Visualisation Tool
 
 The interactive scene explorer lets you:
 
